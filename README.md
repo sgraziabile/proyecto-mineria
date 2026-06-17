@@ -1,25 +1,34 @@
-# Multi-class Classifier for Strength Training Routines
+# Gym Routine Difficulty Predictor
 
-## Project Overview
-This repository contains the code and Jupyter Notebooks for building a multi-class Deep Neural Network (DNN) classifier using Keras and TensorFlow. The model predicts the experience level of strength training routines (Novice, Intermediate, Advanced) based on physiological parameters (volume, load, intensity).
+## 1. Project Overview
+This project applies Machine Learning to predict the difficulty level (Beginner, Intermediate, Advanced) of fitness routines. By transforming raw, sequential workout logs into structured mathematical profiles, the project uncovers the underlying behavioral and physiological patterns that define different levels of gym-goers.
 
-## Academic Context
-This project was developed for the course **Text Mining and Machine Learning (MTAA)** at the Universidad Nacional del Sur (UNS). It emphasizes clean architecture, tensor dimensionality awareness during Pandas preprocessing, and model explainability using SHAP.
+## 2. Data Engineering & Aggregation
+### Original vs. Processed Dataset
+- **Original Data:** Over 400,000 highly granular rows where each record represented a single exercise on a specific day of a multi-week program. 
+- **Processed Data:** Through extensive data cleaning and groupby operations, the noise was distilled down into **1,850 unique, highly stable routine profiles**.
 
-## Architecture & Workflow
+### Feature Engineering
+To capture the true essence of a workout program, we engineered advanced periodization metrics, including:
+- `avg_weekly_volume`: The total workload per week.
+- `avg_intensity` & `max_intensity`: The effort relative to the lifter's max.
+- `avg_exercises_per_day`: Identifying workout density.
+- `intensity_variance_total`: Measuring the structural discipline and periodization of the program.
 
-### 1. Local Preprocessing
-Data starts as an "exercise-per-row" dataset (600,000 records). 
-Run the preprocessing notebook locally to aggregate the data into a "routine-per-row" format.
-* Notebook: `notebooks/01_data_preprocessing_and_eda.ipynb`
-* Modules used: `src/preprocessing.py`
+## 3. Modeling: Random Forest vs. XGBoost
+- **The Challenge:** The dataset presented a severe class imbalance (Advanced routines comprised only ~4% of the data) and a high degree of feature overlap (a hard intermediate routine is mathematically nearly identical to an easy advanced routine).
+- **Random Forest:** Struggled significantly with the minority class, achieving a precision of just 0.04 for Advanced routines. It resorted to casting a wide, messy net to capture the minority class, heavily damaging overall accuracy.
+- **XGBoost:** Gradient boosting proved vastly superior for this imbalanced tabular data. It successfully isolated Advanced routines without needing synthetic data injections (like SMOTE), skyrocketing the minority precision to 0.50.
 
-### 2. Google Colab Execution
-Upload the preprocessed `aggregated_routines.csv` and execute the following phases in Google Colab:
-* **Model Training:** `notebooks/02_model_architecture_and_training.ipynb` - Builds the Keras network with academic justifications for layer and hyperparameter choices.
-* **Explainability:** `notebooks/03_explainability_and_shap.ipynb` - Uses SHAP to generate summary plots and force plots, auditing the systemic load and volume importance.
+## 4. The Depth Trade-off: Baseline vs. Fine-Tuned XGBoost
+- **Baseline XGBoost (`max_depth=6`):** Allowed to "think deeper," this model managed to carve out highly specific, complex rules to accurately identify the rare Advanced routines (0.50 precision).
+- **Fine-Tuned XGBoost (`max_depth=3`):** When constrained by hyperparameter tuning to maximize global metrics, the model became highly conservative. It achieved the highest overall accuracy (56.49%) by becoming an absolute expert at identifying Beginners (78% recall) but completely ignored the Advanced routines (0%). This beautifully illustrated the "Accuracy Illusion"—where a model sacrifices minority classes to pad its overall stats.
 
-## Installation for Local Setup
-```bash
-pip install -r requirements.txt
-```
+## 5. SHAP Analysis (Explainability)
+Using SHAP (`TreeExplainer`) on the Baseline XGBoost model, we reverse-engineered the algorithm's decision-making process to reveal three massive fitness secrets:
+1. **The Ultimate Gatekeeper (`avg_intensity`):** SHAP revealed a perfect linear relationship. High intensity is a strict mathematical requirement for an Advanced classification, while low intensity irrevocably defines a Beginner.
+2. **Quality vs. Quantity (`avg_exercises_per_day`):** The model learned that Beginners perform a high number of different exercises per day ("gym tourists"), whereas Advanced lifters execute fewer, heavier compound movements.
+3. **The Volume Paradox (`avg_weekly_volume`):** SHAP plots showed highly mixed signals for volume, proving that volume alone is ambiguous. Both novices (doing endless light reps) and elites (doing heavy volume) can have high weekly volume, perfectly illustrating why the algorithm faces a mathematical ceiling when trying to separate the classes.
+
+## 6. Conclusions
+This project successfully transformed chaotic, real-world fitness data into a structured Machine Learning pipeline. The modeling phase proved that human-assigned difficulty labels are highly subjective. Despite the statistical "glass ceiling" of ~56% accuracy on aggregate tabular features, the combination of XGBoost and SHAP allowed us to uncover the underlying human psychology of fitness, mathematically proving that Beginners prioritize quantity, while Advanced lifters prioritize quality and structured intensity.
